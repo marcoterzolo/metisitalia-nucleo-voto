@@ -53,6 +53,9 @@
  * Dopo ogni scheda: ricevuta + "Vota la prossima scheda" se ne restano.
  * Errori 409 con codice: "delegato" (ha delegato, non vota) e "delega"
  * (delega revocata o gia' usata).
+ * 12/11/2026 (test sul live): dopo il voto proprio sparisce "Delega il tuo
+ *   voto" (deleghePostVoto); dopo la scheda di una delega sparisce il suo
+ *   "Rifiuta". "Vota la prossima scheda" ora sta subito sotto la ricevuta.
  * =============================================================================
  */
 (function () {
@@ -473,6 +476,7 @@
         };
         trasparenza(salvato, k);
         mostraImpronta();
+        deleghePostVoto(k);
         restanti(k);
         f.hidden = false;
         window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -505,6 +509,25 @@
         }).catch(function () { /* niente impronta: il voto resta valido */ });
     }
 
+    /* 12/11/2026: dopo il voto il riquadro deleghe si allinea senza ricaricare la pagina:
+       - scheda propria (k assente o 'io'): via "Delega il tuo voto" (chi ha votato non puo' piu'
+         delegare: prima il modulo restava e il server rispondeva con un errore);
+       - scheda di una delega (k = id): via "Rifiuta" di quella delega, ormai usata.
+       Se nel riquadro non resta nulla, si nasconde tutto. */
+    function deleghePostVoto(k) {
+        var sez = document.getElementById('AN05V_deleghe');
+        if (!sez) { return; }
+        if (k === undefined || k === null || String(k) === 'io') {
+            var nuova = sez.querySelector('.AN05V_dg_nuova');
+            if (nuova) { nuova.parentNode.removeChild(nuova); }
+        } else {
+            var id = String(k).replace(/[^0-9]/g, '');
+            var bt = id ? sez.querySelector('.AN05V_dg_rifiuta[data-id="' + id + '"]') : null;
+            if (bt) { bt.parentNode.removeChild(bt); }
+        }
+        if (!sez.querySelector('.AN05V_dg_mia, .AN05V_dg_nuova, .AN05V_dg_ricevute')) { sez.hidden = true; }
+    }
+
     /* dopo una scheda: la si toglie dall'elenco e, se ne restano, "Vota la prossima scheda" */
     function restanti(k) {
         if (k === undefined) { return; }
@@ -519,7 +542,7 @@
         if (!rest || !pros) { return; }
         rest.hidden = pros.hidden = schede.length === 0;
         if (!schede.length) { return; }
-        rest.textContent = fmt(T.restano, schede.length);
+        rest.textContent = schede.length === 1 && T.restano_1 ? T.restano_1 : fmt(T.restano, schede.length);
         pros.textContent = T.prossima;
         pros.onclick = riapri;
     }
