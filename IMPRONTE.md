@@ -12,6 +12,34 @@ L'impronta del nucleo è l'impronta del file `vX.Y.sha256` della versione
 
 ---
 
+## Versione 1.3 — 21/11/2026
+
+Chiusura definitiva: si vota fino all'ora di fine; per **1 minuto** (prima 15) l'urna accetta solo le schede già firmate
+prima della chiusura, poi più nulla. Risultati, verbale, impronta dell'urna ed email di chiusura escono dopo quel minuto
+("Scrutinio in corso"), quindi non cambiano più. Cambiano `AN05_voto_urna.php` (accetta fino a 60 secondi dopo la fine)
+e `includes/AN05_blind.php` (`AN05B_scrutinio_sec` al posto di `AN05B_ritardo_max`). Firma cieca, deposito anonimo,
+attesa casuale e ricevuta **invariate**.
+
+*Final closing: voting is possible until the end time; for **1 minute** (previously 15) the ballot box accepts only
+ballots already signed before closing, then nothing. Results, report, ballot box fingerprint and closing email are
+released after that minute ("Counting in progress"), so they can no longer change. Blind signature, anonymous deposit,
+random wait and receipt unchanged.*
+
+| File | SHA-256 |
+|---|---|
+| `js/AN05_blind.js` | `8ecfe8d8b1d51c1aaba7b1021baa9a360bda79e4c8df58161d82e648318dab26` |
+| `js/AN05_voto.js` | `19f9306ba8304297cb3dd66c35d75aa11598672f8efe9a58a6fee22252298396` |
+| `AN05_voto_firma.php` | `7ff0bd7c0bba21594360530605e40906b8c0cc3f633e8b675f449ffd30ae2650` |
+| `AN05_voto_urna.php` | `945f9c1b881d7835e23d95e4bc574184038a6f60633b9434267bf238e0ad0fb9` |
+| `includes/AN05_blind.php` | `73b7a34f8ac266e849bfc5139c2b33d0c5ab319922c4d656251d857958eef8c7` |
+| **Impronta del nucleo** | **`e3ccad15581119652fe9b145b49666aee09f9f73ebaf401fc5af14ff5632368a`** |
+
+Controllo automatico: `sha256sum -c v1.3.sha256`
+
+Perizia indipendente: **in corso**.
+
+---
+
 ## Versione 1.2 — 12/11/2026
 
 Solo interfaccia della scheda (`js/AN05_voto.js`): dopo il proprio voto sparisce il modulo "Delega il tuo voto" e, dopo
@@ -31,7 +59,7 @@ random wait, ballot box and receipt unchanged (only that file changed).*
 | `includes/AN05_blind.php` | `f8350ed80e3e1f10017c7f027235dabb79681ff14f02d4c7893c54c10dc04679` |
 | **Impronta del nucleo** | **`980bc7694082b7bee11d078dd879157dfe71614b58c517bc887435ed7f02cd6c`** |
 
-Controllo automatico: `sha256sum -c v1.2.sha256`
+Controllo automatico: `sha256sum -c v1.2.sha256` (sui file della versione 1.2, nella cronologia dell'archivio)
 
 Perizia indipendente: **in corso**.
 

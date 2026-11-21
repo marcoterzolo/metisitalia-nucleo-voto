@@ -14,8 +14,12 @@
  * POST: an05_id_web, t (gettone, 64 esa), s (firma, esadecimale), scelte (id
  *       candidati separati da virgola).
  * In UNA transazione:
- *   1. votazione con firma cieca, aperta (accettata fino a 15 minuti dopo
- *      la chiusura: la firma e' stata rilasciata prima, il ritardo e' voluto);
+ *   1. votazione con firma cieca, aperta: accettata fino a
+ *      AN05B_scrutinio_sec() secondi (1 minuto) dopo la fine, solo per le
+ *      schede firmate prima della chiusura (dopo la fine non si firma piu');
+ *      risultati e impronta escono solo dopo quel minuto (nucleo v1.3,
+ *      21/11/2026; prima si accettava fino a 15 minuti dopo con i risultati
+ *      gia' pubblici);
  *   2. firma valida sul gettone per QUESTA votazione (AN05B_verifica);
  *   3. gettone non ancora usato: INSERT in op12_gettoni_spesi (chiave primaria
  *      = sha256 del gettone). Se e' gia' usato e' una RIPRESA (risposta persa):
@@ -68,7 +72,7 @@ try {
             AND NOW() <= DATE_ADD(an05_end_date, INTERVAL ? SECOND)
           FOR UPDATE'
     );
-    $st->execute([$idWeb, AN05B_ritardo_max()]);
+    $st->execute([$idWeb, AN05B_scrutinio_sec()]);
     $g = $st->fetch();
     if (!$g || !AN05B_attiva($g['an05_blind_on']) || empty($g['an05_blind_pub'])
         || !AN05B_verifica((string)$g['an05_blind_pub'], $t, $ctx, $s)) {

@@ -19,6 +19,8 @@ Firma cieca (Chaum, RSA-FDH):
 2. Il browser toglie la maschera, controlla la firma e, dopo un'attesa casuale di 5-20 secondi, invia scelte, gettone
    e firma in una richiesta **anonima** (`AN05_voto_urna.php`, senza cookie e senza link personale).
 3. L'urna accetta la scheda perché la firma è valida, ma non può collegarla alla prima richiesta.
+   Si vota fino all'ora di fine; l'urna accetta per un minuto ancora solo le schede già firmate e i risultati
+   escono dopo quel minuto ("Scrutinio in corso"), così non possono più cambiare.
 4. Ogni votazione ha la sua chiave; l'impronta della chiave è mostrata a ogni elettore con la ricevuta e stampata nei
    risultati e nel verbale: se è uguale per tutti, nessuno ha ricevuto una chiave "personale".
 
@@ -40,7 +42,7 @@ Chiavi, password e configurazione non sono mai in questo archivio.
    - Windows: `certutil -hashfile AN05_blind.js SHA256`
    - Mac: `shasum -a 256 AN05_blind.js`
    - Linux: `sha256sum AN05_blind.js`
-2. **Questo archivio**: `sha256sum -c v1.2.sha256` controlla i file di questa cartella (versione attuale; le precedenti sono in IMPRONTE.md).
+2. **Questo archivio**: `sha256sum -c v1.3.sha256` controlla i file di questa cartella (versione attuale; le precedenti sono in IMPRONTE.md).
 3. **Il sito**: la pagina [Verifica tu stesso](https://www.metisitalia.it/index.php?idPg=22) mostra le impronte dei
    file in uso sul server, la struttura reale dell'urna e cosa controllare con gli strumenti del browser (F12).
 4. **I file PHP sul server** li può confrontare solo chi ha accesso al server: è il compito della perizia

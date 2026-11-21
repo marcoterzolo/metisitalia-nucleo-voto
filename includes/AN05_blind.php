@@ -54,8 +54,19 @@
  *   AN05B_ricevuta($t, $ctx)           codice ricevuta XXXX-XXXX-XXXX derivato dal
  *                                      gettone (stesso gettone = stessa ricevuta:
  *                                      serve alla ripresa se la risposta va persa)
- *   AN05B_ritardo_max()                secondi di tolleranza dopo la chiusura per
- *                                      le schede firmate prima della chiusura
+ *   AN05B_scrutinio_sec()              secondi dopo la fine in cui l'urna accetta
+ *                                      ancora le schede gia' firmate (nucleo v1.3)
+ *
+ * Chiusura (nucleo v1.3, collaudo del 21/11/2026, M1): si vota fino all'ora di
+ * fine (le firme si rilasciano fino a quel momento, AN05_voto_firma.php). Le
+ * schede firmate prima della fine sono ancora "in viaggio" per l'attesa
+ * casuale di 5-20 s: l'urna le accetta per AN05B_scrutinio_sec() secondi dopo
+ * la fine e poi piu' nulla. Risultati, verbale, impronta dell'urna e avviso di
+ * chiusura si pubblicano SOLO dopo quel minuto (AN05_scrutinio_pronto() in
+ * includes/AN05_lib.php), quindi non possono piu' cambiare dopo l'uscita.
+ * Dopo la fine non si puo' iniziare un voto: nell'urna entrano solo firme
+ * rilasciate prima della chiusura. Prima (v1.0-v1.2) l'urna accettava schede
+ * per 15 minuti mentre i risultati erano gia' pubblici (AN05B_ritardo_max, tolta).
  * =============================================================================
  */
 require_once __DIR__ . '/security.php';
@@ -274,10 +285,14 @@ if (!function_exists('AN05B_pronto')) {
         return $out;
     }
 
-    /** le schede firmate prima della chiusura possono arrivare fino a 15 minuti dopo (ritardo casuale, rete lenta) */
-    function AN05B_ritardo_max(): int
+    /**
+     * Secondi dopo l'ora di fine in cui l'urna accetta ancora le schede firmate
+     * prima della fine (attesa casuale 5-20 s + rete lenta). Risultati, verbale e
+     * impronta escono solo dopo questo intervallo (AN05_scrutinio_pronto).
+     */
+    function AN05B_scrutinio_sec(): int
     {
-        return 900;
+        return 60;
     }
 
     function AN05B_privata_votazione(int $an05_id)
