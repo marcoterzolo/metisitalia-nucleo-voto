@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<!--
+  =============================================================================
+  docs/verifica.html - VERIFICA INDIPENDENTE DI UN'URNA DI METIS ITALIA
+  (pubblicata con GitHub Pages, FUORI dal server di METIS Italia; 21/11/2026)
+  -----------------------------------------------------------------------------
+  Pagina statica: nessun server, nessun dato salvato. Riceve il FILE DELL'URNA
+  di una votazione chiusa (scaricato da "Scarica l'urna" nella pagina dei
+  risultati, trascinato qui, oppure letto dal link dopo il # quando si arriva da
+  "Verifica fuori dal nostro sito") e controlla, nel browser di chi la usa:
+   1. il sigillo della lista dei candidati;
+   2. la firma di ogni scheda su scelte e lista (nucleo del voto v1.4);
+   3. il riconteggio rispetto ai risultati pubblicati;
+   4. l'impronta dell'urna e quella della chiave;
+   5. i timbri del registro pubblico su GitHub (archivio
+      marcoterzolo/metisitalia-registro-urne): numeri timbrati durante il voto
+      e impronte timbrate alla chiusura.
+  Il calcolo usa AN05_blind.js, copia identica del file del nucleo del voto
+  (la sua impronta e' mostrata in fondo e si confronta con IMPRONTE.md).
+  Logica in verifica.js, testi in 5 lingue (it, en, es, de, fr).
+  =============================================================================
+-->
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<title>METIS Italia - Verifica indipendente dell'urna</title>
+<style>
+  :root { --blu: #15476c; --verde: #2e9e5b; --rosso: #b02a37; --grigio: #4a5a68; --bordo: #d5dde6; --fondo: #f4f7fb; }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; color: #2b3a47; background: var(--fondo); line-height: 1.55; }
+  header { background: var(--blu); color: #fff; padding: 22px 16px; }
+  header h1 { margin: 0 auto; max-width: 900px; font-size: 24px; }
+  header p { margin: 6px auto 0; max-width: 900px; opacity: .9; }
+  main { max-width: 900px; margin: 0 auto; padding: 18px 16px 40px; }
+  .box { background: #fff; border: 1px solid var(--bordo); border-radius: 12px; padding: 18px; margin-bottom: 16px; }
+  .zona { border: 2px dashed var(--bordo); border-radius: 12px; padding: 26px; text-align: center; color: var(--grigio); cursor: pointer; }
+  .zona.sopra { border-color: var(--blu); background: #eef4fa; }
+  .esito { padding: 10px 14px; border-radius: 8px; margin: 8px 0; }
+  .si { background: #e3f4ea; color: #1d6b3d; }
+  .no { background: #fbe4e6; color: var(--rosso); font-weight: 600; }
+  .info { background: #eef2f6; color: var(--grigio); }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--bordo); }
+  code { word-break: break-all; font-size: 13px; }
+  .piccolo { font-size: 13px; color: var(--grigio); }
+  select { padding: 4px; }
+  button { background: var(--blu); color: #fff; border: 0; border-radius: 8px; padding: 9px 16px; font-size: 15px; cursor: pointer; }
+</style>
+</head>
+<body>
+<header>
+  <h1 id="t_titolo"></h1>
+  <p id="t_sotto"></p>
+</header>
+<main>
+  <div class="box">
+    <p id="t_spiega"></p>
+    <p class="piccolo"><label for="lingua" id="t_lingua"></label>
+      <select id="lingua"><option value="it">Italiano</option><option value="en">English</option><option value="es">Español</option><option value="de">Deutsch</option><option value="fr">Français</option></select></p>
+    <div class="zona" id="zona" tabindex="0" role="button"><span id="t_zona"></span>
+      <input type="file" id="file" accept=".json,application/json" hidden></div>
+    <p class="piccolo" id="origine"></p>
+  </div>
+  <div id="risultato"></div>
+  <div class="box piccolo">
+    <p id="t_come"></p>
+    <p><span id="t_impjs"></span> <code id="impjs">...</code></p>
+  </div>
+</main>
+<script src="AN05_blind.js"></script>
+<script src="verifica.js"></script>
+</body>
+</html>

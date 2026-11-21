@@ -49,7 +49,14 @@ Chiavi, password e configurazione non sono mai in questo archivio.
 2. **Questo archivio**: `sha256sum -c v1.4.sha256` controlla i file di questa cartella (versione attuale; le precedenti sono in IMPRONTE.md).
 3. **Il sito**: la pagina [Verifica tu stesso](https://www.metisitalia.it/index.php?idPg=22) mostra le impronte dei
    file in uso sul server, la struttura reale dell'urna e cosa controllare con gli strumenti del browser (F12).
-4. **I file PHP sul server** li può confrontare solo chi ha accesso al server: è il compito della perizia
+4. **Riconta fuori dal nostro sito**: la pagina [verifica.html](https://marcoterzolo.github.io/metisitalia-nucleo-voto/verifica.html)
+   (cartella `docs/`, pubblicata da GitHub Pages, quindi NON servita dal server di METIS) legge il file dell'urna di una
+   votazione chiusa ("Scarica l'urna" nella pagina dei risultati), ricalcola sigillo, firme, riconteggio e impronte con
+   `docs/AN05_blind.js` (copia identica di `js/AN05_blind.js`) e li confronta con i timbri del registro pubblico
+   [metisitalia-registro-urne](https://github.com/marcoterzolo/metisitalia-registro-urne): durante il voto il sito timbra
+   lì solo i numeri (schede, gettoni usati, votanti), alla chiusura le impronte. Una scheda cancellata o un'urna
+   cambiata dopo la chiusura non coincidono più con i timbri.
+5. **I file PHP sul server** li può confrontare solo chi ha accesso al server: è il compito della perizia
    indipendente, il cui rapporto sarà collegato in [IMPRONTE.md](IMPRONTE.md).
 
 ## Limiti dichiarati
