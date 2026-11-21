@@ -7,7 +7,7 @@
  *  - Card candidato = <button aria-pressed>: clic o Invio/Spazio per
  *    scegliere/togliere. Superato il massimo -> avviso SweetAlert2.
  *  - Barra fissa in basso: "Scelti X di N" + pulsante "Conferma voto"
- *    (attivo solo con almeno una scelta).
+ *    (attivo anche senza scelte: scheda bianca, dal nucleo v1.5).
  *  - Conferma: riepilogo SweetAlert2 con i nomi scelti -> POST a
  *    an02_sendVote.php (token CSRF aggiunto da js/MI_csrf.js) ->
  *    schermata finale con il CODICE RICEVUTA (mostrato solo qui) e
@@ -66,6 +66,9 @@
  * 12/11/2026 (test sul live): dopo il voto proprio sparisce "Delega il tuo
  *   voto" (deleghePostVoto); dopo la scheda di una delega sparisce il suo
  *   "Rifiuta". "Vota la prossima scheda" ora sta subito sotto la ricevuta.
+ * 21/11/2026 (nucleo v1.5, SCHEDA BIANCA): "Conferma voto" sempre attivo; con zero candidati
+ *  il riepilogo chiede "Confermi la scheda bianca?" (testi bianca_t/_x/_v da ElectionDay.php)
+ *  e si vota come sempre: firma cieca su scelte vuote, deposito, ricevuta.
  * =============================================================================
  */
 (function () {
@@ -163,7 +166,7 @@
     function aggiorna() {
         var n = scelti().length;
         conta.textContent = txtScelti.replace('%s', n).replace('%d', max);
-        vota.disabled = n === 0;
+        vota.disabled = false;               // nucleo v1.5: zero scelte = scheda bianca
         griglia.classList.toggle('AN05V_pieno', n >= max);
     }
 
@@ -214,12 +217,13 @@
 
     vota.addEventListener('click', function () {
         var sel = scelti();
-        if (!sel.length) { Swal.fire({ icon: 'info', text: T.nessuno }); return; }
         var lista = sel.map(function (c) { return '<li>' + escHtml(c.getAttribute('data-nome')) + '</li>'; }).join('');
+        var bianca = !sel.length;            // nucleo v1.5: nessun candidato = scheda bianca, sempre ammessa
         Swal.fire({
             // titleText: il nome del delegante entra come testo, mai come HTML
-            titleText: cur === 'io' ? T.conf_t : fmt(T.per_conf_t, nomeScheda(cur)),
-            html: '<p>' + escHtml(T.conf_x) + '</p><ul class="AN05V_riep">' + lista + '</ul>' +
+            titleText: cur !== 'io' ? fmt(T.per_conf_t, nomeScheda(cur)) : (bianca ? T.bianca_t : T.conf_t),
+            html: (bianca ? '<p>' + escHtml(T.bianca_x) + '</p>'
+                          : '<p>' + escHtml(T.conf_x) + '</p><ul class="AN05V_riep">' + lista + '</ul>') +
                   '<p class="AN05V_nota">' + escHtml(T.conf_nota) + '</p>',
             icon: 'question',
             showCancelButton: true,
@@ -456,7 +460,7 @@
         if (BL) { riga(el, T.k_cieca, T.k_cieca_v); }
         riga(el, T.k_scelte_te, T.k_scelte_te_v, true);
         riga(sc, T.k_nome_urna, T.k_nome_urna_v, true);
-        riga(sc, T.k_scelte, (u.scelte || []).join(', ') || '-');
+        riga(sc, T.k_scelte, (u.scelte || []).join(', ') || T.bianca_v || '-');
         riga(sc, T.k_giorno, u.giorno || '-');
         riga(sc, T.k_ora, T.k_ora_v, true);
         riga(sc, T.k_impronta, u.impronta || '-');

@@ -12,6 +12,37 @@ L'impronta del nucleo è l'impronta del file `vX.Y.sha256` della versione
 
 ---
 
+## Versione 1.5 — 21/11/2026
+
+**Scheda bianca.** Si può confermare il voto senza scegliere nessun candidato. La scheda bianca viene firmata alla
+cieca come tutte le altre: il messaggio firmato è lo stesso della versione 1.4 con l'elenco degli id scelti **vuoto**
+(`"MI-AN05-SCHEDA-v2|" + id votazione + "|" + sigillo + "|"`), quindi la firma copre anche il fatto che la scheda è
+vuota e nessuno può aggiungerle un candidato dopo. Nell'urna finisce una scheda senza scelte; l'elettore risulta
+votante e riceve la ricevuta. Nessun altro cambiamento a firma, deposito anonimo, attesa casuale e ricevuta.
+Cambiano `js/AN05_blind.js` (la verifica accetta zero scelte), `js/AN05_voto.js` («Conferma voto» attivo anche senza
+scelte, con la domanda «Confermi la scheda bianca?»), `AN05_voto_urna.php` (accetta il campo `scelte` vuoto, ma
+richiede che ci sia) e `includes/AN05_blind.php`.
+
+*Blank ballot. The vote can be confirmed without choosing any candidate. The blank ballot is blind-signed like all the
+others: the signed message is the same as in version 1.4 with an **empty** list of chosen ids, so the signature also
+covers the fact that the ballot is empty and nobody can add a candidate to it later. The box receives a ballot with no
+choices; the voter counts as having voted and gets the receipt.*
+
+| File | SHA-256 |
+|---|---|
+| `js/AN05_blind.js` | `91d04144d652529804569b36d19a4fb678fa956db734b43f66c02787b68d629d` |
+| `js/AN05_voto.js` | `7e97cfadcf5aab73170a870a1db4a44cddaeba883c05ac2e0e5508fbf2d03088` |
+| `AN05_voto_firma.php` | `7ff0bd7c0bba21594360530605e40906b8c0cc3f633e8b675f449ffd30ae2650` |
+| `AN05_voto_urna.php` | `204c0ca8c4400be1dcaaa30aa8c8754346d345ad6c86cefde9408ef7b9c14b8f` |
+| `includes/AN05_blind.php` | `087d7124b3d2f42dbbdc3d6a42920e67bcf207e2ad42c6a012ef07c00535d057` |
+| **Impronta del nucleo** | **`d2b92fa7558facaaefd2c069a7cd40827218153c0401e1cec2cd4310b7bef602`** |
+
+Controllo automatico: `sha256sum -c v1.5.sha256`
+
+Perizia indipendente: **in corso**.
+
+---
+
 ## Versione 1.4 — 21/11/2026
 
 **Firma anche sulle scelte.** Quando l'elettore conferma, il browser fa firmare alla cieca il gettone **insieme alle

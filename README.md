@@ -46,7 +46,7 @@ Chiavi, password e configurazione non sono mai in questo archivio.
    - Windows: `certutil -hashfile AN05_blind.js SHA256`
    - Mac: `shasum -a 256 AN05_blind.js`
    - Linux: `sha256sum AN05_blind.js`
-2. **Questo archivio**: `sha256sum -c v1.4.sha256` controlla i file di questa cartella (versione attuale; le precedenti sono in IMPRONTE.md).
+2. **Questo archivio**: `sha256sum -c v1.5.sha256` controlla i file di questa cartella (versione attuale; le precedenti sono in IMPRONTE.md).
 3. **Il sito**: la pagina [Verifica tu stesso](https://www.metisitalia.it/index.php?idPg=22) mostra le impronte dei
    file in uso sul server, la struttura reale dell'urna e cosa controllare con gli strumenti del browser (F12).
 4. **Riconta fuori dal nostro sito**: la pagina [verifica.html](https://marcoterzolo.github.io/metisitalia-nucleo-voto/verifica.html)

@@ -97,6 +97,8 @@
  * Dopo la fine non si puo' iniziare un voto: nell'urna entrano solo firme
  * rilasciate prima della chiusura. Prima (v1.0-v1.2) l'urna accettava schede
  * per 15 minuti mentre i risultati erano gia' pubblici (AN05B_ritardo_max, tolta).
+ * 21/11/2026 (nucleo v1.5, SCHEDA BIANCA): AN05B_verifica_scheda accetta anche zero scelte
+ *  (scheda bianca, firmata come vuota: nessuno puo' aggiungere scelte dopo).
  * =============================================================================
  */
 require_once __DIR__ . '/security.php';
@@ -293,7 +295,7 @@ if (!function_exists('AN05B_pronto')) {
     /** verifica di una scheda versione 2 (p binario 32 byte, s binario) */
     function AN05B_verifica_scheda(string $pemPub, string $p, string $an05_id_web, string $sigillo, array $ids, string $s): bool
     {
-        if (strlen($p) !== 32 || !$ids) {
+        if (strlen($p) !== 32) {             // nucleo v1.5: $ids vuoto = scheda bianca, firmata come tale
             return false;
         }
         return AN05B_verifica_msg($pemPub, $p, AN05B_ctx_scelte($an05_id_web, $sigillo, $ids), $s);

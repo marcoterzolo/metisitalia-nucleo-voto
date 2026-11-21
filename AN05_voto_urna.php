@@ -38,6 +38,9 @@
  * il riquadro di trasparenza "Nell'urna".
  * Nessun log di gettoni, firme, scelte o indirizzi.
  * Errori: 409 chiusa/non valida, 422 dati non validi, 500 interno.
+ * 21/11/2026 (nucleo v1.5, SCHEDA BIANCA): accettata la scheda con zero scelte (campo "scelte"
+ *  presente ma vuoto): nessun voto ai candidati, scheda nell'urna con op11_scelte vuoto,
+ *  gettone speso e ricevuta come sempre. La firma (v2) copre anche il fatto che e' vuota.
  * =============================================================================
  */
 require_once __DIR__ . '/includes/AN05_lib.php';
@@ -56,7 +59,7 @@ $sel = array_values(array_unique(array_filter(
     static function ($v) { return $v > 0; }
 )));
 if (!mi_valid_uuid($idWeb) || strlen($tHex) !== AN05B_TOKEN * 2 || !ctype_xdigit($tHex)
-    || $sHex === '' || strlen($sHex) > 1024 || strlen($sHex) % 2 !== 0 || !ctype_xdigit($sHex) || !$sel) {
+    || $sHex === '' || strlen($sHex) > 1024 || strlen($sHex) % 2 !== 0 || !ctype_xdigit($sHex) || !isset($_POST['scelte'])) {
     mi_json_exit(422, ['ok' => false]);
 }
 $t = hex2bin($tHex);
@@ -108,12 +111,14 @@ try {
             $pdo->rollBack();
             mi_json_exit(422, ['ok' => false]);
         }
-        $in = implode(',', array_fill(0, count($sel), '?'));
-        $c = $pdo->prepare("SELECT COUNT(*) FROM an02_candidates WHERE an02_an05_id = ? AND an02_id IN ($in)");
-        $c->execute(array_merge([$an05_id], $sel));
-        if ((int)$c->fetchColumn() !== count($sel)) {
-            $pdo->rollBack();
-            mi_json_exit(422, ['ok' => false]);
+        if ($sel) {                            // nucleo v1.5: nessuna scelta = scheda bianca
+            $in = implode(',', array_fill(0, count($sel), '?'));
+            $c = $pdo->prepare("SELECT COUNT(*) FROM an02_candidates WHERE an02_an05_id = ? AND an02_id IN ($in)");
+            $c->execute(array_merge([$an05_id], $sel));
+            if ((int)$c->fetchColumn() !== count($sel)) {
+                $pdo->rollBack();
+                mi_json_exit(422, ['ok' => false]);
+            }
         }
 
         $pdo->prepare('INSERT INTO op12_gettoni_spesi (op12_hash, op12_an05_id) VALUES (?, ?)')

@@ -44,6 +44,8 @@
  * Stesse formule di includes/AN05_blind.php (AN05B_sigillo, AN05B_pub,
  * AN05B_ctx_scelte): il server firma alla cieca m, quindi la firma copre il
  * gettone, le scelte e i nomi dei candidati che l'elettore aveva davanti.
+ * 21/11/2026 (nucleo v1.5, SCHEDA BIANCA): verificaScheda accetta anche zero scelte (scheda
+ *  bianca: il messaggio firmato finisce con "|" e la firma copre il fatto che e' vuota).
  * =============================================================================
  */
 (function (w) {
@@ -154,7 +156,7 @@
     }
     async function messaggio(t, ctx, idWeb, sig, ids, k) { return fdh(await pub(t, ctx), ctxScelte(idWeb, sig, ids), k); }
     async function verificaScheda(pEsa, sEsa, idWeb, sig, ids, chiavePub) {
-        if (!/^[0-9a-f]{64}$/.test(pEsa) || !/^[0-9a-f]+$/.test(sEsa) || !ids.length) { return false; }
+        if (!/^[0-9a-f]{64}$/.test(pEsa) || !/^[0-9a-f]+$/.test(sEsa)) { return false; }   // ids vuoto = scheda bianca (v1.5)
         var m = await fdh(esaByte(pEsa), ctxScelte(idWeb, sig, ids), chiavePub.k);
         return verifica(daEsa(sEsa), m, chiavePub);
     }
