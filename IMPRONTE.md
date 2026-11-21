@@ -12,6 +12,41 @@ L'impronta del nucleo è l'impronta del file `vX.Y.sha256` della versione
 
 ---
 
+## Versione 1.4 — 21/11/2026
+
+**Firma anche sulle scelte.** Quando l'elettore conferma, il browser fa firmare alla cieca il gettone **insieme alle
+scelte e al sigillo della lista dei candidati** (numeri e nomi). Ogni scheda dell'urna pubblica porta la sua firma e
+chiunque le verifica tutte con la chiave pubblica della votazione ("Riconta" nella pagina dei risultati): una scelta
+o un nome cambiati nel database dopo il voto fanno fallire la verifica. Il gettone resta segreto, la ricevuta non
+cambia. Vale per le votazioni la cui chiave è creata dal 21/11/2026 (le precedenti restano con la firma sul solo
+gettone). Cambiano `js/AN05_blind.js`, `js/AN05_voto.js`, `AN05_voto_urna.php` e `includes/AN05_blind.php`.
+
+Formule (stesse in PHP e in JavaScript):
+- sigillo = SHA-256(`"MI-AN05-CANDIDATI-v1|" + id votazione + "\n" + righe "id<TAB>nome"` dei candidati per id crescente)
+- p = SHA-256(`"MI-AN05-PUB|" + contesto + "|" + gettone`) — pubblicato con la scheda, non rivela il gettone
+- messaggio firmato = FDH(p, `"MI-AN05-SCHEDA-v2|" + id votazione + "|" + sigillo + "|" + id scelti in ordine crescente`)
+
+*Signature on the choices too. When the voter confirms, the browser has the token blind-signed **together with the
+choices and the seal of the candidate list** (numbers and names). Every ballot in the public box carries its signature
+and anyone can check all of them with the public key of the election ("Recount" on the results page): a choice or a
+name changed in the database after the vote makes the check fail. The token stays secret, the receipt does not change.
+Applies to elections whose key is created from 21/11/2026.*
+
+| File | SHA-256 |
+|---|---|
+| `js/AN05_blind.js` | `5441dfa8a8b614f4b9a26d77a4963ddc13e4785d41a6eb04ee53c35a757a2778` |
+| `js/AN05_voto.js` | `ecd33e058f59d499fd1503e6407c2cd37f95dcf740a3ce2fdb5e94e8b938fb15` |
+| `AN05_voto_firma.php` | `7ff0bd7c0bba21594360530605e40906b8c0cc3f633e8b675f449ffd30ae2650` |
+| `AN05_voto_urna.php` | `ce8a89d39221378d51b6569f30c0e3aa737b34d918204e8d10de71c981da08d8` |
+| `includes/AN05_blind.php` | `2a041ce0d512c191209f3b6e17d88ae53680afd3f387f0b62be2d1c18e16df06` |
+| **Impronta del nucleo** | **`866cb0d07ad122a7bfde24e691e9719077646bca322dd0b0d9574018236b2312`** |
+
+Controllo automatico: `sha256sum -c v1.4.sha256`
+
+Perizia indipendente: **in corso**.
+
+---
+
 ## Versione 1.3 — 21/11/2026
 
 Chiusura definitiva: si vota fino all'ora di fine; per **1 minuto** (prima 15) l'urna accetta solo le schede già firmate
@@ -34,7 +69,7 @@ random wait and receipt unchanged.*
 | `includes/AN05_blind.php` | `73b7a34f8ac266e849bfc5139c2b33d0c5ab319922c4d656251d857958eef8c7` |
 | **Impronta del nucleo** | **`e3ccad15581119652fe9b145b49666aee09f9f73ebaf401fc5af14ff5632368a`** |
 
-Controllo automatico: `sha256sum -c v1.3.sha256`
+Controllo automatico: `sha256sum -c v1.3.sha256` (sui file della versione 1.3, nella cronologia dell'archivio)
 
 Perizia indipendente: **in corso**.
 

@@ -38,6 +38,16 @@
  *  ricevuta). Dopo il deposito i dati vengono cancellati. Nessun altro dato
  *  viene salvato nel browser.
  *
+ * FIRMA SULLE SCELTE (nucleo v1.4, 21/11/2026, BL.v = 2): il messaggio firmato
+ * alla cieca non e' piu' m = FDH(t) ma m = FDH(p, ctx2) con p = parte pubblica
+ * del gettone e ctx2 = votazione + SIGILLO della lista dei candidati (BL.cand,
+ * calcolato qui con AN05B.sigillo) + id scelti (js/AN05_blind.js, messaggio).
+ * La firma copre quindi scelte e nomi: nell'urna nessuno puo' cambiarli senza
+ * che la verifica pubblica delle firme fallisca. Versione e sigillo restano
+ * nel salvataggio della ripresa (p.v, p.sig). Con la ricevuta si mostra anche
+ * il sigillo della lista (T.sigillo), da confrontare con risultati e verbale.
+ * Votazioni in versione 1 (BL.v assente): come prima, firma sul solo gettone.
+ *
  * IMPRONTA DELLA CHIAVE (08/11/2026): con la ricevuta il browser mostra
  * l'impronta della chiave che ha usato (AN05B.impronta, testi T.impronta e
  * T.impronta_x): uguale per tutti, si confronta con risultati e verbale.
@@ -277,13 +287,19 @@
         });
     }
 
+    // messaggio firmato alla cieca: v2 = gettone + sigillo della lista + scelte, v1 = solo gettone
+    function messaggioDi(p, pub) {
+        if (p.v === 2) { return B.messaggio(B.esaByte(p.t), BL.ctx, an05, p.sig, p.scelte, pub.k); }
+        return B.fdh(B.esaByte(p.t), BL.ctx, pub.k);
+    }
+
     // passo 2: firma alla cieca col link personale (anche per la ripresa: stesso b)
     async function chiediFirma(p, pub, k) {
         var dati = { an05_id_web: an05, an04_id_web: an04, b: B.esa(B.daEsa(p.b), pub.k) };
         if (k && String(k) !== 'io') { dati.delega = String(k); }      // scheda del delegante
         var j = await posta('AN05_voto_firma.php', dati, false);
         if (!j || !j.ok) { throw 0; }
-        var m = await B.fdh(B.esaByte(p.t), BL.ctx, pub.k);
+        var m = await messaggioDi(p, pub);
         var s = B.smaschera(B.daEsa(j.s), B.daEsa(p.r), pub);
         if (!B.verifica(s, m, pub)) { lsCancella(k); throw 'firma'; }
         p.s = B.esa(s, pub.k);
@@ -361,9 +377,14 @@
         try {
             var pub = B.chiave(BL);
             var t = B.gettone();
-            var m = await B.fdh(t, BL.ctx, pub.k);
-            var mk = B.maschera(m, pub);
-            var p = { t: B.byteEsa(t), r: B.esa(mk.r, pub.k), b: B.esa(mk.b, pub.k), scelte: ids };
+            var p = { t: B.byteEsa(t), scelte: ids };
+            if (BL.v === 2) {                  // nucleo v1.4: la firma copre anche scelte e lista dei candidati
+                p.v = 2;
+                p.sig = await B.sigillo(an05, BL.cand || []);
+            }
+            var mk = B.maschera(await messaggioDi(p, pub), pub);
+            p.r = B.esa(mk.r, pub.k);
+            p.b = B.esa(mk.b, pub.k);
             lsScrivi(k, p);                    // salvato PRIMA di inviare: serve alla ripresa
             await chiediFirma(p, pub, k);
             await attesaCasuale();
@@ -505,6 +526,28 @@
                 var sm = document.createElement('small');
                 sm.textContent = ' ' + T.impronta_x;
                 p.appendChild(sm);
+            }
+            // nucleo v1.4: sigillo della lista dei candidati che questo browser ha firmato
+            if (BL.v === 2 && BL.cand && B.sigillo) {
+                return B.sigillo(an05, BL.cand).then(function (sig) {
+                    var q = document.getElementById('AN05V_sigillo_ric');
+                    if (!q) {
+                        q = document.createElement('p');
+                        q.id = 'AN05V_sigillo_ric';
+                        q.className = 'AN05V_imp_chiave';
+                        p.parentNode.insertBefore(q, p.nextSibling);
+                    }
+                    q.textContent = '';
+                    q.appendChild(document.createTextNode((T.sigillo || 'Sigillo della lista dei candidati') + ': '));
+                    var c2 = document.createElement('code');
+                    c2.textContent = B.breve(sig);
+                    q.appendChild(c2);
+                    if (T.sigillo_x) {
+                        var sm2 = document.createElement('small');
+                        sm2.textContent = ' ' + T.sigillo_x;
+                        q.appendChild(sm2);
+                    }
+                });
             }
         }).catch(function () { /* niente impronta: il voto resta valido */ });
     }

@@ -34,6 +34,16 @@
  *   pub = {n: BigInt, e: BigInt, k: numero di byte} -> chiave(datiServer)
  *   impronta(datiServer)            Promise<"XXXX-XXXX-XXXX-XXXX"> impronta della chiave
  *                                   della votazione (08/11/2026, = AN05B_impronta_chiave)
+ *   --- nucleo v1.4 (21/11/2026): firma anche su scelte e lista dei candidati ---
+ *   sigillo(idWeb, lista)           Promise<esa 64> sigillo della lista [[id, nome], ...]
+ *   breve(esa)                      "XXXX-XXXX-XXXX-XXXX"
+ *   pub(t, ctx)                     Promise<Uint8Array(32)> p = SHA-256("MI-AN05-PUB|"+ctx+"|"+t)
+ *   ctxScelte(idWeb, sig, ids)      "MI-AN05-SCHEDA-v2|" + id + "|" + sigillo + "|" + id scelti
+ *   messaggio(t, ctx, idWeb, sig, ids, k)  Promise<BigInt> m = FDH(p, ctxScelte)
+ *   verificaScheda(pEsa, sEsa, idWeb, sig, ids, pub)  Promise<bool> (riconteggio pubblico)
+ * Stesse formule di includes/AN05_blind.php (AN05B_sigillo, AN05B_pub,
+ * AN05B_ctx_scelte): il server firma alla cieca m, quindi la firma copre il
+ * gettone, le scelte e i nomi dei candidati che l'elettore aveva davanti.
  * =============================================================================
  */
 (function (w) {
@@ -126,6 +136,29 @@
         return x.match(/.{4}/g).join('-');
     }
 
+    // --- nucleo v1.4: firma sulle scelte (stesse formule di includes/AN05_blind.php) ---
+    async function sha256(u8) { return new Uint8Array(await w.crypto.subtle.digest('SHA-256', u8)); }
+    function unisci(a, b) { var u = new Uint8Array(a.length + b.length); u.set(a, 0); u.set(b, a.length); return u; }
+    async function sigillo(idWeb, lista) {
+        var l = lista.slice().sort(function (x, y) { return Number(x[0]) - Number(y[0]); });
+        var righe = l.map(function (c) { return String(parseInt(c[0], 10)) + '\t' + String(c[1]); });
+        return byteEsa(await sha256(new TextEncoder().encode('MI-AN05-CANDIDATI-v1|' + idWeb + '\n' + righe.join('\n'))));
+    }
+    function breve(h) { return String(h).slice(0, 16).toUpperCase().match(/.{4}/g).join('-'); }
+    async function pub(t, ctx) { return sha256(unisci(new TextEncoder().encode('MI-AN05-PUB|' + ctx + '|'), t)); }
+    function ctxScelte(idWeb, sig, ids) {
+        var v = [];
+        ids.forEach(function (x) { x = parseInt(x, 10); if (v.indexOf(x) < 0) { v.push(x); } });
+        v.sort(function (a, b) { return a - b; });
+        return 'MI-AN05-SCHEDA-v2|' + idWeb + '|' + sig + '|' + v.join(',');
+    }
+    async function messaggio(t, ctx, idWeb, sig, ids, k) { return fdh(await pub(t, ctx), ctxScelte(idWeb, sig, ids), k); }
+    async function verificaScheda(pEsa, sEsa, idWeb, sig, ids, chiavePub) {
+        if (!/^[0-9a-f]{64}$/.test(pEsa) || !/^[0-9a-f]+$/.test(sEsa) || !ids.length) { return false; }
+        var m = await fdh(esaByte(pEsa), ctxScelte(idWeb, sig, ids), chiavePub.k);
+        return verifica(daEsa(sEsa), m, chiavePub);
+    }
+
     function supportato() {
         return typeof BigInt === 'function' && !!(w.crypto && w.crypto.subtle && w.crypto.getRandomValues && w.TextEncoder);
     }
@@ -133,6 +166,7 @@
     w.AN05B = {
         supportato: supportato, gettone: gettone, fdh: fdh, maschera: maschera, smaschera: smaschera,
         verifica: verifica, esa: esa, daEsa: daEsa, byteEsa: byteEsa, esaByte: esaByte, chiave: chiave,
-        impronta: impronta
+        impronta: impronta, sigillo: sigillo, breve: breve, pub: pub, ctxScelte: ctxScelte,
+        messaggio: messaggio, verificaScheda: verificaScheda
     };
 }(typeof window !== 'undefined' ? window : globalThis));

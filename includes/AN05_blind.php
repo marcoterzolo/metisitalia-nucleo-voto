@@ -56,6 +56,36 @@
  *                                      serve alla ripresa se la risposta va persa)
  *   AN05B_scrutinio_sec()              secondi dopo la fine in cui l'urna accetta
  *                                      ancora le schede gia' firmate (nucleo v1.3)
+ *   --- nucleo v1.4 (21/11/2026): firma anche su scelte e lista dei candidati ---
+ *   AN05B_firma_v($an05_id): int       1 = firma sul solo gettone, 2 = anche scelte
+ *   AN05B_nome($nome, $cognome)        nome del candidato in forma canonica
+ *   AN05B_sigillo($idWeb, $lista)      SIGILLO della lista dei candidati (64 esa)
+ *   AN05B_breve($esa)                  XXXX-XXXX-XXXX-XXXX (primi 16 caratteri)
+ *   AN05B_pub($t, $ctx)                parte PUBBLICA del gettone p (32 byte)
+ *   AN05B_ctx_scelte($idWeb, $sig, $ids) messaggio firmato con le scelte
+ *   AN05B_verifica_scheda($pemPub, $p, $idWeb, $sig, $ids, $s): bool
+ *
+ * FIRMA SULLE SCELTE (versione 2, nucleo v1.4, 21/11/2026). Prima (versione 1)
+ * il server firmava alla cieca solo m = FDH(t, ctx): la firma provava il diritto
+ * di voto ma non le scelte, e chi poteva scrivere nel database poteva cambiare
+ * le scelte di una scheda o scambiare i nomi di due candidati senza rompere
+ * nulla. Con la versione 2 il browser, quando l'elettore conferma, calcola:
+ *   sigillo = SHA-256("MI-AN05-CANDIDATI-v1|" + id votazione + "\n" + righe)
+ *             righe = "id<TAB>nome" di tutti i candidati per id crescente, una per
+ *             riga ("\n"); nome = AN05B_nome (cosi' come mostrato sulla scheda)
+ *   p       = SHA-256("MI-AN05-PUB|" + ctx + "|" + t)   (32 byte, pubblicabile:
+ *             da p non si ricava t, quindi nemmeno la ricevuta)
+ *   ctx2    = "MI-AN05-SCHEDA-v2|" + id votazione + "|" + sigillo + "|" + id scelti
+ *             in ordine crescente separati da virgola
+ *   m       = FDH(p, ctx2)   -> mascherato e firmato alla cieca come prima
+ * L'urna verifica s^e = FDH(p, ctx2) ricalcolando il sigillo dalla lista del
+ * database: se scelte o nomi sono stati cambiati dopo la firma, la scheda e'
+ * rifiutata. Ogni scheda nell'urna pubblica porta p e s: chiunque, con la
+ * chiave pubblica della votazione e la lista dei candidati pubblicata con il
+ * suo sigillo, verifica TUTTE le firme (js/AN05_risultati.js, "Riconta").
+ * Il gettone t resta segreto (gettoni spesi e ricevuta come prima).
+ * Le votazioni la cui chiave esisteva prima del 21/11/2026 restano in
+ * versione 1 (colonna an05_groups.an05_firma_v, _sql/MI_fase46_firma_scelte.sql).
  *
  * Chiusura (nucleo v1.3, collaudo del 21/11/2026, M1): si vota fino all'ora di
  * fine (le firme si rilasciano fino a quel momento, AN05_voto_firma.php). Le
@@ -76,6 +106,7 @@ if (!function_exists('AN05B_pronto')) {
     define('AN05B_BITS', 2048);
     define('AN05B_TOKEN', 32);                  // byte del gettone
     define('AN05B_VERSION', 'MI-AN05-BLIND-v1');
+    define('AN05B_SCHEDA', 'MI-AN05-SCHEDA-v2');      // nucleo v1.4: firma anche sulle scelte
 
     function AN05B_pronto(): ?string
     {
@@ -180,12 +211,18 @@ if (!function_exists('AN05B_pronto')) {
         return str_pad($s, strlen($n), "\0", STR_PAD_LEFT);
     }
 
-    /** verifica: s^e mod n == FDH(t, ctx) */
+    /** verifica: s^e mod n == FDH(t, ctx) (versione 1, firma sul solo gettone) */
     function AN05B_verifica(string $pemPub, string $t, string $ctx, string $s): bool
     {
         if (strlen($t) !== AN05B_TOKEN) {
             return false;
         }
+        return AN05B_verifica_msg($pemPub, $t, $ctx, $s);
+    }
+
+    /** verifica generica: s^e mod n == FDH(seme, contesto) */
+    function AN05B_verifica_msg(string $pemPub, string $seme, string $ctx, string $s): bool
+    {
         $pub = openssl_pkey_get_public($pemPub);
         if ($pub === false) {
             return false;
@@ -199,7 +236,67 @@ if (!function_exists('AN05B_pronto')) {
             return false;
         }
         $x = str_pad($x, strlen($n), "\0", STR_PAD_LEFT);
-        return hash_equals(AN05B_fdh($t, $ctx, strlen($n)), $x);
+        return hash_equals(AN05B_fdh($seme, $ctx, strlen($n)), $x);
+    }
+
+    /* ------------------- nucleo v1.4: firma sulle scelte ------------------- */
+
+    /** versione della firma della votazione: 2 = anche scelte e lista (colonna mancante = 1) */
+    function AN05B_firma_v(int $an05_id): int
+    {
+        try {
+            $st = mi_pdo()->prepare('SELECT an05_firma_v FROM an05_groups WHERE an05_id = ?');
+            $st->execute([$an05_id]);
+            return (int)$st->fetchColumn() === 2 ? 2 : 1;
+        } catch (Throwable $ex) {
+            return 1;                    // SQL fase46 non ancora eseguito
+        }
+    }
+
+    /** nome del candidato come appare su scheda, urna e sigillo (niente tab/a capo) */
+    function AN05B_nome(string $nome, string $cognome): string
+    {
+        return trim(str_replace(["\t", "\r", "\n"], ' ', $nome . ' ' . $cognome));
+    }
+
+    /** sigillo della lista: $lista = [[id, nome canonico], ...] (qualsiasi ordine) */
+    function AN05B_sigillo(string $an05_id_web, array $lista): string
+    {
+        usort($lista, static function ($a, $b) { return (int)$a[0] <=> (int)$b[0]; });
+        $righe = [];
+        foreach ($lista as $c) {
+            $righe[] = (int)$c[0] . "\t" . (string)$c[1];
+        }
+        return hash('sha256', 'MI-AN05-CANDIDATI-v1|' . $an05_id_web . "\n" . implode("\n", $righe));
+    }
+
+    /** XXXX-XXXX-XXXX-XXXX da un'impronta esadecimale */
+    function AN05B_breve(string $esa): string
+    {
+        return implode('-', str_split(strtoupper(substr($esa, 0, 16)), 4));
+    }
+
+    /** parte pubblica del gettone: p = SHA-256("MI-AN05-PUB|" + ctx + "|" + t), 32 byte */
+    function AN05B_pub(string $t, string $ctx): string
+    {
+        return hash('sha256', 'MI-AN05-PUB|' . $ctx . '|' . $t, true);
+    }
+
+    /** contesto firmato insieme a p: votazione, sigillo della lista, id scelti in ordine */
+    function AN05B_ctx_scelte(string $an05_id_web, string $sigillo, array $ids): string
+    {
+        $ids = array_values(array_unique(array_map('intval', $ids)));
+        sort($ids, SORT_NUMERIC);
+        return AN05B_SCHEDA . '|' . $an05_id_web . '|' . $sigillo . '|' . implode(',', $ids);
+    }
+
+    /** verifica di una scheda versione 2 (p binario 32 byte, s binario) */
+    function AN05B_verifica_scheda(string $pemPub, string $p, string $an05_id_web, string $sigillo, array $ids, string $s): bool
+    {
+        if (strlen($p) !== 32 || !$ids) {
+            return false;
+        }
+        return AN05B_verifica_msg($pemPub, $p, AN05B_ctx_scelte($an05_id_web, $sigillo, $ids), $s);
     }
 
     function AN05B_hash_gettone(string $t, string $ctx): string

@@ -13,12 +13,16 @@ to their ballots.*
 
 Firma cieca (Chaum, RSA-FDH):
 
-1. Il browser dell'elettore crea un gettone casuale, lo "maschera" con un numero che resta solo nel browser e lo
-   manda al server insieme al link personale (`AN05_voto_firma.php`). Il server firma alla cieca, una sola volta per
-   elettore: vede chi è, ma non vede né il gettone né le scelte.
+1. Il browser dell'elettore crea un gettone casuale e lo unisce alle **scelte** e al **sigillo della lista dei
+   candidati** (un'impronta di numeri e nomi di tutti i candidati); "maschera" il risultato con un numero che resta
+   solo nel browser e lo manda al server insieme al link personale (`AN05_voto_firma.php`). Il server firma alla
+   cieca, una sola volta per elettore: vede chi è, ma non vede né il gettone né le scelte.
 2. Il browser toglie la maschera, controlla la firma e, dopo un'attesa casuale di 5-20 secondi, invia scelte, gettone
    e firma in una richiesta **anonima** (`AN05_voto_urna.php`, senza cookie e senza link personale).
-3. L'urna accetta la scheda perché la firma è valida, ma non può collegarla alla prima richiesta.
+3. L'urna accetta la scheda perché la firma è valida, ma non può collegarla alla prima richiesta. La firma copre
+   scelte e lista dei candidati: ogni scheda dell'urna pubblica porta la sua firma e "Riconta" nella pagina dei
+   risultati le verifica tutte nel browser, quindi nessuno può cambiare una scelta o un nome dopo il voto senza che
+   si veda (dalla versione 1.4).
    Si vota fino all'ora di fine; l'urna accetta per un minuto ancora solo le schede già firmate e i risultati
    escono dopo quel minuto ("Scrutinio in corso"), così non possono più cambiare.
 4. Ogni votazione ha la sua chiave; l'impronta della chiave è mostrata a ogni elettore con la ricevuta e stampata nei
@@ -26,10 +30,10 @@ Firma cieca (Chaum, RSA-FDH):
 
 | File | Cosa fa |
 |---|---|
-| `js/AN05_blind.js` | gettone, maschera, firma, verifica, impronta della chiave (nel browser) |
+| `js/AN05_blind.js` | gettone, maschera, firma, verifica, impronta della chiave, sigillo della lista (nel browser) |
 | `js/AN05_voto.js` | scheda: firma col link, attesa casuale, invio anonimo, ripresa, ricevuta |
 | `AN05_voto_firma.php` | firma alla cieca, una per elettore (o per delega) |
-| `AN05_voto_urna.php` | urna anonima: verifica firma, gettone non riusabile, nessun log |
+| `AN05_voto_urna.php` | urna anonima: verifica firma su scelte e lista, gettone non riusabile, nessun log |
 | `includes/AN05_blind.php` | primitive RSA-FDH (MGF1-SHA256), chiavi per votazione, codice ricevuta |
 
 Gli altri file del sito (pagine, area riservata, deleghe, impostazioni) non toccano il segreto del voto e non sono qui.
@@ -42,7 +46,7 @@ Chiavi, password e configurazione non sono mai in questo archivio.
    - Windows: `certutil -hashfile AN05_blind.js SHA256`
    - Mac: `shasum -a 256 AN05_blind.js`
    - Linux: `sha256sum AN05_blind.js`
-2. **Questo archivio**: `sha256sum -c v1.3.sha256` controlla i file di questa cartella (versione attuale; le precedenti sono in IMPRONTE.md).
+2. **Questo archivio**: `sha256sum -c v1.4.sha256` controlla i file di questa cartella (versione attuale; le precedenti sono in IMPRONTE.md).
 3. **Il sito**: la pagina [Verifica tu stesso](https://www.metisitalia.it/index.php?idPg=22) mostra le impronte dei
    file in uso sul server, la struttura reale dell'urna e cosa controllare con gli strumenti del browser (F12).
 4. **I file PHP sul server** li può confrontare solo chi ha accesso al server: è il compito della perizia
@@ -54,7 +58,10 @@ Chiavi, password e configurazione non sono mai in questo archivio.
   molto difficile collegare le due richieste, ma con pochissimi votanti e accesso a quei registri non è impossibile
   in teoria.
 - Le votazioni create prima dell'introduzione della firma cieca usano il vecchio sistema e non sono coperte da questo
-  nucleo.
+  nucleo. Quelle la cui chiave è stata creata prima del 21/11/2026 hanno la firma sul solo gettone (versione 1):
+  la verifica pubblica di scelte e nomi vale dalla versione 1.4 in poi.
+- Il riconteggio nel browser (`js/AN05_risultati.js`) non è uno dei 5 file del nucleo: usa le funzioni di
+  `js/AN05_blind.js` e si può rifare con qualsiasi strumento a partire dai dati pubblicati nella pagina dei risultati.
 
 ## Licenza
 

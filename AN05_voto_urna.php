@@ -20,7 +20,11 @@
  *      risultati e impronta escono solo dopo quel minuto (nucleo v1.3,
  *      21/11/2026; prima si accettava fino a 15 minuti dopo con i risultati
  *      gia' pubblici);
- *   2. firma valida sul gettone per QUESTA votazione (AN05B_verifica);
+ *   2. firma valida per QUESTA votazione: versione 1 sul solo gettone
+ *      (AN05B_verifica); versione 2 (nucleo v1.4, 21/11/2026, an05_firma_v = 2)
+ *      su gettone + sigillo della lista dei candidati + scelte
+ *      (AN05B_verifica_scheda, sigillo ricalcolato dalla lista del database con
+ *      AN05_cand_lista): scelte o nomi cambiati dopo la firma = scheda rifiutata;
  *   3. gettone non ancora usato: INSERT in op12_gettoni_spesi (chiave primaria
  *      = sha256 del gettone). Se e' gia' usato e' una RIPRESA (risposta persa):
  *      si restituisce la stessa ricevuta, derivata dal gettone, senza
@@ -28,7 +32,8 @@
  *   4. preferenze <= massimo, candidati tutti della votazione;
  *   5. contatori in chiaro + copia AES (come il flusso attuale) e scheda
  *      anonima in op11_schede (chiave casuale, hash della ricevuta, scelte,
- *      solo il giorno).
+ *      solo il giorno; in versione 2 anche p = parte pubblica del gettone e la
+ *      firma s, pubblicate con l'urna per la verifica di tutti).
  * Risposta {ok, ricevuta, scheda}: "scheda" e' la riga riletta dall'urna per
  * il riquadro di trasparenza "Nell'urna".
  * Nessun log di gettoni, firme, scelte o indirizzi.
@@ -74,12 +79,21 @@ try {
     );
     $st->execute([$idWeb, AN05B_scrutinio_sec()]);
     $g = $st->fetch();
-    if (!$g || !AN05B_attiva($g['an05_blind_on']) || empty($g['an05_blind_pub'])
-        || !AN05B_verifica((string)$g['an05_blind_pub'], $t, $ctx, $s)) {
+    if (!$g || !AN05B_attiva($g['an05_blind_on']) || empty($g['an05_blind_pub'])) {
         $pdo->rollBack();
         mi_json_exit(409, ['ok' => false]);
     }
     $an05_id = (int)$g['an05_id'];
+    // nucleo v1.4: versione 2 = la firma copre anche scelte e lista dei candidati
+    $firmaV = AN05B_firma_v($an05_id);
+    $pPub = $firmaV === 2 ? AN05B_pub($t, $ctx) : '';
+    $firmaOk = $firmaV === 2
+        ? AN05B_verifica_scheda((string)$g['an05_blind_pub'], $pPub, $idWeb, AN05B_sigillo($idWeb, AN05_cand_lista($an05_id)), $sel, $s)
+        : AN05B_verifica((string)$g['an05_blind_pub'], $t, $ctx, $s);
+    if (!$firmaOk) {
+        $pdo->rollBack();
+        mi_json_exit(409, ['ok' => false]);
+    }
     $max = (int)$g['an05_max_preference'];
 
     // gettone gia' usato? -> ripresa, nessuna modifica
@@ -118,10 +132,19 @@ try {
 
         $scelte = $sel;
         sort($scelte, SORT_NUMERIC);
-        $pdo->prepare(
-            'INSERT INTO op11_schede (op11_id, op11_an05_id, op11_ricevuta_hash, op11_scelte, op11_data)
-             VALUES (?, ?, ?, ?, CURDATE())'
-        )->execute([bin2hex(random_bytes(16)), $an05_id, mi_receipt_hash($an05_id, $ricevuta), implode(',', $scelte)]);
+        if ($firmaV === 2) {
+            // p e firma pubblicati con l'urna: chiunque verifica che scelte e nomi sono quelli firmati
+            $pdo->prepare(
+                'INSERT INTO op11_schede (op11_id, op11_an05_id, op11_ricevuta_hash, op11_scelte, op11_p, op11_firma, op11_data)
+                 VALUES (?, ?, ?, ?, ?, ?, CURDATE())'
+            )->execute([bin2hex(random_bytes(16)), $an05_id, mi_receipt_hash($an05_id, $ricevuta), implode(',', $scelte),
+                        bin2hex($pPub), bin2hex($s)]);
+        } else {
+            $pdo->prepare(
+                'INSERT INTO op11_schede (op11_id, op11_an05_id, op11_ricevuta_hash, op11_scelte, op11_data)
+                 VALUES (?, ?, ?, ?, CURDATE())'
+            )->execute([bin2hex(random_bytes(16)), $an05_id, mi_receipt_hash($an05_id, $ricevuta), implode(',', $scelte)]);
+        }
 
         $pdo->commit();
     }
@@ -141,11 +164,12 @@ try {
     $sc = $st->fetch() ?: [];
     $nomi = [];
     if (!empty($sc['op11_scelte'])) {
+        // 21/11/2026: nomi dalla lista decifrata (nomi dei candidati cifrati, AN05_cand_lista)
         $ids = array_map('intval', explode(',', (string)$sc['op11_scelte']));
-        $n = $pdo->prepare('SELECT an02_firstname, an02_lastname FROM an02_candidates WHERE an02_an05_id = ? AND an02_id IN (' . implode(',', array_fill(0, count($ids), '?')) . ')');
-        $n->execute(array_merge([$an05_id], $ids));
-        foreach ($n->fetchAll() as $c) {
-            $nomi[] = trim($c['an02_firstname'] . ' ' . $c['an02_lastname']);
+        foreach (AN05_cand_lista($an05_id) as $c) {
+            if (in_array((int)$c[0], $ids, true)) {
+                $nomi[] = $c[1];
+            }
         }
         sort($nomi);
     }
